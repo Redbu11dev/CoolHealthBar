@@ -53,6 +53,20 @@ function UpdatePower()
 	currentPower = UnitMana("player")
 	maxPower = UnitManaMax("player")
 	
+	local powerType = UnitPowerType("player")
+	
+	--print("powertype: "..powerType)
+	
+	if powerType == 0 then
+		mainFrame.power:SetStatusBarColor(0, 0, 1, barAlpha)
+	elseif powerType == 1 then
+		mainFrame.power:SetStatusBarColor(1, 0, 0, barAlpha)
+	elseif powerType == 3 then
+		mainFrame.power:SetStatusBarColor(1, 1, 0, barAlpha)
+	else
+		mainFrame.power:SetStatusBarColor(1, 1, 0, barAlpha)
+	end
+	
 	--if (maxPower < 1) then maxPower = 1 end
 
 	local powerPercent = math.floor((currentPower / maxPower)*100)
