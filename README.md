@@ -2,11 +2,8 @@
 
 (!) Rename folder to "CoolHealthBar" (!)
 
-REQUIRES SUPERWOW https://github.com/balakethelock/SuperWoW
-
 Features:
 - Automatically hides outside of combat if health and power is full
-- (!) Only works with mana classes yet
 
 No configuration options are provided at the moment
 
