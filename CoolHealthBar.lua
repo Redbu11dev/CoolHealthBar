@@ -1,7 +1,9 @@
 --local frame = CreateFrame("Frame")
 
 local addonIsLoaded = false
-local localVersion = "1.0.0"
+local playerEnteredWorld = false
+
+local localVersion = "1.0.1"
 
 local playerIsInCombatLockdown = false
 
@@ -12,6 +14,33 @@ local maxPower = 0
 
 local mainFrame = CreateFrame("Frame", "MainFrame", UIParent)
 mainFrame:SetFrameStrata("LOW")
+
+mainFrame:SetScript("OnEvent", function()
+	addonIsLoaded = true
+
+	if event == "ADDON_LOADED" and arg1 == "CoolHealthBar" then
+		addonIsLoaded = true
+		--print("----------ADDON_LOADED: "..arg1)
+		mainFrame:UnregisterEvent("ADDON_LOADED")
+		
+		if (addonIsLoaded and playerEnteredWorld) then
+			CoolHealthBar_OnLoad()
+		end
+	end
+	if event == "PLAYER_ENTERING_WORLD" then
+		playerEnteredWorld = true
+		--print("----------ADDON_LOADED: "..arg1)
+		mainFrame:UnregisterEvent("PLAYER_ENTERING_WORLD")
+		
+		if (addonIsLoaded and playerEnteredWorld) then
+			CoolHealthBar_OnLoad()
+		end
+	end
+end)
+
+--frame:SetScript("OnEvent", dispatchEvents)
+mainFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+mainFrame:RegisterEvent("ADDON_LOADED")
 
 local barAlpha = 1
 local barBackgroundAlpha = 0.5
@@ -103,22 +132,9 @@ function ChangeHealthBarVisibility()
 	end
 end
 
-function CoolHealthBar_OnLoad(self)
-	--print(string.format("%s: v%s by Redbu11 is loaded susscessfully\nThank you for using my addon", "CoolHealthBar", localVersion))
-	addonIsLoaded = true
-
-	--frame:SetScript("OnEvent", dispatchEvents)
-	this:RegisterEvent("ADDON_LOADED")
-	this:RegisterEvent("UNIT_HEALTH")
-	this:RegisterEvent("UNIT_MANA")
-	this:RegisterEvent("PLAYER_REGEN_DISABLED")
-	this:RegisterEvent("PLAYER_REGEN_ENABLED")
-	
-	this:SetScript("OnEvent", function()
-		-- if event == "ADDON_LOADED" then
-			-- print("----------ADDON_LOADED: "..arg1)
-		-- end
-	
+function CoolHealthBar_OnLoad()
+	print(string.format("%s: v%s by Redbu11 is loaded susscessfully\nThank you for using my addon", "CoolHealthBar", localVersion))
+	mainFrame:SetScript("OnEvent", function()
 		if event == "UNIT_HEALTH" and UnitIsUnit(arg1, "player") then
 			UpdateHealth()
 		elseif event == "UNIT_MANA" and UnitIsUnit(arg1, "player") then
@@ -128,6 +144,15 @@ function CoolHealthBar_OnLoad(self)
 			ChangeHealthBarVisibility()
 		end
 	end)
+
+	--frame:SetScript("OnEvent", dispatchEvents)
+	--mainFrame:RegisterEvent("ADDON_LOADED")
+	mainFrame:RegisterEvent("UNIT_HEALTH")
+	mainFrame:RegisterEvent("UNIT_MANA")
+	mainFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
+	mainFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+	
+	
 	
 	--mainFrame:SetSize(500, 350)
 	mainFrame:SetWidth(barsWidth+8)

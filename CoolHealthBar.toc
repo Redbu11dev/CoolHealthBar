@@ -5,4 +5,4 @@
 ## Author: Redbu11
 ## DefaultState: enabled
 
-CoolHealthBar.xml
+CoolHealthBar.lua
