@@ -82,7 +82,7 @@ end
 function ChangeHealthBarVisibility()
 	local shouldShow = false
 
-	if playerIsInCombatLockdown or (currentHp < maxHp) or (currentPower < maxPower) and maxHp > 0 and maxPower > 0 then
+	if UnitAffectingCombat("player") or playerIsInCombatLockdown or (currentHp < maxHp) or (currentPower < maxPower) and maxHp > 0 and maxPower > 0 then
 		shouldShow = true
 	else
 		shouldShow = false
