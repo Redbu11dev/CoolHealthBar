@@ -1,0 +1,8 @@
+## Interface: 11200
+## Title: CoolHealthBar
+## Notes: Cool Health Bar by Redbu11
+## LoadOnDemand: 0
+## Author: Redbu11
+## DefaultState: enabled
+
+CoolHealthBar.xml
