@@ -151,9 +151,9 @@ function CoolHealthBar_OnLoad()
 	print(string.format("%s: v%s by Redbu11 is loaded susscessfully\nThank you for using my addon", "CoolHealthBar", localVersion))
 	
 	mainFrame:SetScript("OnEvent", function()
-		if (event == "UNIT_HEALTH" or event == "UNIT_HEALTH_FREQUENT" or event == "UNIT_MAXHEALTH") and UnitIsUnit(arg1, "player") then
+		if (event == "UNIT_HEALTH" or event == "UNIT_MAXHEALTH") and UnitIsUnit(arg1, "player") then
 			UpdateHealth()
-		elseif (event == "UNIT_MANA" or event == "UNIT_MANA_FREQUENT" or event == "UNIT_MAXMANA") and UnitIsUnit(arg1, "player") then
+		elseif (event == "UNIT_MANA" or event == "UNIT_MAXMANA") and UnitIsUnit(arg1, "player") then
 			UpdatePower()
 		elseif event == "PLAYER_REGEN_DISABLED" or event == "PLAYER_REGEN_ENABLED" then
 			playerIsInCombatLockdown = arg1
@@ -164,10 +164,8 @@ function CoolHealthBar_OnLoad()
 	--frame:SetScript("OnEvent", dispatchEvents)
 	--mainFrame:RegisterEvent("ADDON_LOADED")
 	mainFrame:RegisterEvent("UNIT_HEALTH")
-	mainFrame:RegisterEvent("UNIT_HEALTH_FREQUENT")
 	mainFrame:RegisterEvent("UNIT_MAXHEALTH")
 	mainFrame:RegisterEvent("UNIT_MANA")
-	mainFrame:RegisterEvent("UNIT_MANA_FREQUENT")
 	mainFrame:RegisterEvent("UNIT_MAXMANA")
 	mainFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
 	mainFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
