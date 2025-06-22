@@ -92,7 +92,7 @@ function UpdatePower()
 		mainFrame.power:SetStatusBarColor(0, 0, 1, barAlpha)
 	elseif powerType == 1 then
 		mainFrame.power:SetStatusBarColor(1, 0, 0, barAlpha)
-	elseif powerType == 3 then
+	elseif powerType == 2 or powerType == 3 then
 		mainFrame.power:SetStatusBarColor(1, 1, 0, barAlpha)
 	else
 		mainFrame.power:SetStatusBarColor(1, 1, 0, barAlpha)
@@ -116,10 +116,20 @@ function ChangeHealthBarVisibility()
 	if CoolHealthBarSettings.alwaysShowOutOfCombat then
 		shouldShow = true
 	elseif CoolHealthBarSettings.showOutOfCombatWhenNotFull then
-		if UnitAffectingCombat("player") or playerIsInCombatLockdown or (currentHp < maxHp) or (currentPower < maxPower) and maxHp > 0 and maxPower > 0 then
-			shouldShow = true
+		local powerType = UnitPowerType("player")
+		
+		if powerType == 1 then
+			if UnitAffectingCombat("player") or playerIsInCombatLockdown or (currentHp < maxHp) and maxHp > 0 then
+				shouldShow = true
+			else
+				shouldShow = false
+			end
 		else
-			shouldShow = false
+			if UnitAffectingCombat("player") or playerIsInCombatLockdown or (currentHp < maxHp) or (currentPower < maxPower) and maxHp > 0 and maxPower > 0 then
+				shouldShow = true
+			else
+				shouldShow = false
+			end
 		end
 	else
 		if UnitAffectingCombat("player") or playerIsInCombatLockdown then
