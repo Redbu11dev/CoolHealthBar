@@ -56,13 +56,6 @@ mainFrame:RegisterEvent("ADDON_LOADED")
 local barAlpha = 1
 local barBackgroundAlpha = 0.5
 
--- local barsWidth = 400
--- local healthBarHeight = 20
--- local powerBarHeight = 10
-
--- local offsetY = -327
-local offsetX = 0
-
 local statusBarTexture = "Interface\\AddOns\\CoolHealthBar\\img\\statusbar\\XPerl_StatusBar7"
 
 function UpdateHealth()
@@ -280,6 +273,7 @@ end
 
 function loadCoolHealthBarDefaultSettings()
 	CoolHealthBarSettings = {
+		minimapIconPos = 0,
 		showOutOfCombatWhenNotFull=true,
 		alwaysShowOutOfCombat=false,
 		barsWidth = 400,
@@ -302,11 +296,15 @@ end
 
 function loadCoolHealthBarSettings() 
 	if CoolHealthBarSettings == nil then
-		print("-------unable to load CoolHealthbar saved data, backing up to defaults")
 		loadCoolHealthBarDefaultSettings()
 		print("unable to load CoolHealthbar saved data, backing up to defaults")
 	else
-		print("---------CoolHealthBar saved data loaded")
+		if CoolHealthBarSettings.minimapIconPos == nil then
+			CoolHealthBarSettings.minimapIconPos=0
+		end
+		if CoolHealthBarSettings.showOutOfCombatWhenNotFull == nil then
+			CoolHealthBarSettings.showOutOfCombatWhenNotFull=true
+		end
 		if CoolHealthBarSettings.showOutOfCombatWhenNotFull == nil then
 			CoolHealthBarSettings.showOutOfCombatWhenNotFull=true
 		end
@@ -656,4 +654,89 @@ function initSettings()
 	end)
 	
 	coolHealthBarOptionsFrame:Hide()
+	
+	LoadCHBMinimapButton()
+end
+
+local CHBMinimapButton = CreateFrame('Button', "CHBMainMenuBarToggler", Minimap)
+
+function LoadCHBMinimapButton()
+    CHBMinimapButton:SetFrameStrata('HIGH')
+    CHBMinimapButton:SetWidth(31)
+    CHBMinimapButton:SetHeight(31)
+    CHBMinimapButton:SetFrameLevel(8)
+    --CHBMinimapButton:RegisterForClicks('anyUp')
+    CHBMinimapButton:SetHighlightTexture('Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight')
+	CHBMinimapButton:SetMovable(true)
+	CHBMinimapButton:EnableMouse(true)
+
+    local CHBMinimapButtonOverlay = CHBMinimapButton:CreateTexture(nil, 'OVERLAY')
+    CHBMinimapButtonOverlay:SetWidth(53)
+    CHBMinimapButtonOverlay:SetHeight(53)
+    CHBMinimapButtonOverlay:SetTexture('Interface\\Minimap\\MiniMap-TrackingBorder')
+    CHBMinimapButtonOverlay:SetPoint('TOPLEFT', 0, 0)
+
+    local icon = CHBMinimapButton:CreateTexture(nil, 'BACKGROUND')
+    icon:SetWidth(20)
+    icon:SetHeight(20)
+    icon:SetTexture('Interface\\Icons\\Spell_ChargeNegative')
+    icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
+    icon:SetPoint('TOPLEFT', 7, -5)
+    CHBMinimapButton.icon = icon
+
+    CHBMinimapButton:SetScript("OnClick", function()
+		if arg1 == "LeftButton" then
+			if not coolHealthBarOptionsFrame:IsShown() then
+				coolHealthBarOptionsFrame:Show()
+			else
+				coolHealthBarOptionsFrame:Hide()
+			end
+		elseif arg1 == "RightButton" then
+			-- nothing
+		end
+	end)
+	
+	CHBMinimapButton:RegisterForDrag("RightButton")
+	CHBMinimapButton:SetScript("OnDragStart", function()
+		CHBMinimapButton:StartMoving()
+		CHBMinimapButton:SetScript("OnUpdate", function()
+			local Xpoa, Ypoa = GetCursorPosition()
+			local Xmin, Ymin = Minimap:GetLeft(), Minimap:GetBottom()
+			Xpoa = Xmin - Xpoa / Minimap:GetEffectiveScale() + 70
+			Ypoa = Ypoa / Minimap:GetEffectiveScale() - Ymin - 70
+			CoolHealthBarSettings.minimapIconPos = math.deg(math.atan2(Ypoa, Xpoa))
+			CHBMinimapButton:ClearAllPoints()
+			CHBMinimapButton:SetPoint("TOPLEFT", Minimap, "TOPLEFT", 52 - (80 * cos(CoolHealthBarSettings.minimapIconPos)), (80 * sin(CoolHealthBarSettings.minimapIconPos)) - 52)
+		end)
+	end)
+	 
+	CHBMinimapButton:SetScript("OnDragStop", function()
+		CHBMinimapButton:StopMovingOrSizing()
+		CHBMinimapButton:SetScript("OnUpdate", nil)
+		CHBUpdateMapBtn()
+	end)
+	
+	CHBMinimapButton:SetScript("OnEnter", function()			
+		GameTooltip_SetDefaultAnchor(GameTooltip, UIParent)
+		local scale = GameTooltip:GetEffectiveScale()
+		local x, y = GetCursorPosition()
+		GameTooltip:ClearAllPoints()
+		GameTooltip:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMLEFT", x / scale, y / scale)
+		GameTooltip:SetText("CoolHealthBar")
+		GameTooltip:AddLine("\n")
+		GameTooltip:AddLine("Left-click to show options", 1, 1, 1)
+		GameTooltip:AddLine("Right-click and drag to move the button", 1, 1, 1)
+		GameTooltip:Show()
+	end)
+	
+	CHBMinimapButton:SetScript("OnLeave", function()
+		GameTooltip:Hide()
+	end)
+
+    
+	if CoolHealthBarSettings.minimapIconPos ~= 0 then
+		CHBMinimapButton:SetPoint("TOPLEFT", Minimap, "TOPLEFT", 52 - (80 * cos(CoolHealthBarSettings.minimapIconPos)), (80 * sin(CoolHealthBarSettings.minimapIconPos)) - 52)
+	else
+		CHBMinimapButton:SetPoint("BOTTOMRIGHT", Minimap, "BOTTOMRIGHT", -2, 2)
+	end
 end
