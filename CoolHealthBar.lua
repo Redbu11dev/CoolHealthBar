@@ -671,7 +671,7 @@ end
 local CHBMinimapButton = CreateFrame('Button', "CHBMainMenuBarToggler", Minimap)
 
 function LoadCHBMinimapButton()
-    CHBMinimapButton:SetFrameStrata('HIGH')
+    --CHBMinimapButton:SetFrameStrata('HIGH')
     CHBMinimapButton:SetWidth(31)
     CHBMinimapButton:SetHeight(31)
     CHBMinimapButton:SetFrameLevel(8)
