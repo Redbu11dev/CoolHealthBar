@@ -1,5 +1,7 @@
 # CoolHealthBar
 
+Extra health and power bar
+
 (!) Rename folder to "CoolHealthBar" (!)
 
 /coolhealthbar or /chb to open settings menu (or click minimap button)
