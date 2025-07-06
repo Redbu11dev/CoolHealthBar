@@ -14,8 +14,6 @@ end
 local addonIsLoaded = false
 local playerEnteredWorld = false
 
-local localVersion = "1.0.2"
-
 local playerIsInCombatLockdown = false
 
 local currentHp = 0
@@ -23,8 +21,20 @@ local maxHp = 0
 local currentPower = 0
 local maxPower = 0
 
-local mainFrame = CreateFrame("Frame", "MainFrame", UIParent)
+local anyWatchedBuffFound = false
+
+local mainFrame = CreateFrame("Frame", "CoolHealthBarMainFrame", UIParent)
 mainFrame:SetFrameStrata("LOW")
+mainFrame.TimeToCheck = 0
+
+local coolHealthBarScanTooltip = nil
+
+local function getBuffInfo(buffId, buffCancel)
+	local scanTextLine1 = _G["CoolHealthBarScanTooltipTextLeft1"]
+	coolHealthBarScanTooltip:ClearLines()
+	coolHealthBarScanTooltip:SetPlayerBuff(buffId, buffCancel)
+	return scanTextLine1:GetText(), GetPlayerBuffTexture(buffId), GetPlayerBuffTimeLeft(buffId), GetPlayerBuffApplications(buffId)
+end
 
 mainFrame:SetScript("OnEvent", function()
 	addonIsLoaded = true
@@ -47,6 +57,98 @@ mainFrame:SetScript("OnEvent", function()
 			CoolHealthBar_OnLoad()
 		end
 	end
+end)
+
+local function trimString(s)
+  local l = 1
+  while strsub(s,l,l) == ' ' do
+    l = l+1
+  end
+  local r = strlen(s)
+  while strsub(s,r,r) == ' ' do
+    r = r-1
+  end
+  return strsub(s,l,r)
+end
+
+local buffWatchL1Names = {}
+local buffWatchR1Names = {}
+
+mainFrame:SetScript("OnUpdate", function()
+    mainFrame.TimeToCheck = mainFrame.TimeToCheck - arg1
+    if mainFrame.TimeToCheck > 0 then 
+        return -- We haven't counted down to zero yet so do nothing
+    end
+    mainFrame.TimeToCheck = 0.01 -- We've waited a second so reset the timer
+	
+	anyWatchedBuffFound = false
+	local buffL1Found = false
+	local buffR1Found = false
+	
+    for i=0,40 do
+		local bId,bCancel = GetPlayerBuff(i,"HELPFUL|HARMFUL|PASSIVE")
+		if(bId >= 0) then			
+			local buffName, bufftexture, buffSecondsLeft, buffCount = getBuffInfo(bId, bCancel)
+			--print(i.." chb debug buffName: "..buffName.." bufftexture: "..bufftexture.." buffSecondsLeft: "..buffSecondsLeft.." buffCount: "..buffCount)
+			
+			if (table.getn(buffWatchL1Names) > 0) then
+				for _, buffToWatchName in ipairs(buffWatchL1Names) do
+					if string.find(string.upper(buffName), string.upper(buffToWatchName)) then
+						mainFrame.buffWatchL1.icon:SetTexture(bufftexture)
+						if (buffSecondsLeft > 0) then
+							--mainFrame.buffWatchL1.cdFrame:SetCooldown(buffSecondsLeft, 30)
+							mainFrame.buffWatchL1.textDuration:SetText(""..math.floor(buffSecondsLeft))
+						else
+							mainFrame.buffWatchL1.textDuration:SetText("")
+						end
+						if (buffCount > 1) then
+							mainFrame.buffWatchL1.textCount:SetText(""..buffCount)
+						else
+							mainFrame.buffWatchL1.textCount:SetText("")
+						end
+						mainFrame.buffWatchL1:Show()
+						
+						buffL1Found = true
+						anyWatchedBuffFound = true
+						break
+					end
+				end
+			end
+			
+			if (table.getn(buffWatchR1Names) > 0) then
+				for _, buffToWatchName in ipairs(buffWatchR1Names) do
+					if string.find(string.upper(buffName), string.upper(buffToWatchName)) then
+						mainFrame.buffWatchR1.icon:SetTexture(bufftexture)
+						if (buffSecondsLeft > 0) then
+							--mainFrame.buffWatchR1.cdFrame:SetCooldown(buffSecondsLeft, 30)
+							mainFrame.buffWatchR1.textDuration:SetText(""..math.floor(buffSecondsLeft))
+						else
+							mainFrame.buffWatchR1.textDuration:SetText("")
+						end
+						if (buffCount > 1) then
+							mainFrame.buffWatchR1.textCount:SetText(""..buffCount)
+						else
+							mainFrame.buffWatchR1.textCount:SetText("")
+						end
+						mainFrame.buffWatchR1:Show()
+						
+						buffR1Found = true
+						anyWatchedBuffFound = true
+						break
+					end
+				end
+			end
+		end 
+    end
+	
+	if not buffL1Found then
+		mainFrame.buffWatchL1:Hide()
+	end
+	
+	if not buffR1Found then
+		mainFrame.buffWatchR1:Hide()
+	end
+	
 end)
 
 --frame:SetScript("OnEvent", dispatchEvents)
@@ -131,12 +233,20 @@ function ChangeHealthBarVisibility()
 				shouldShow = false
 			end
 		end
+		
+		-- if anyWatchedBuffFound then
+			-- shouldShow = true
+		-- end
 	else
-		if UnitAffectingCombat("player") or playerIsInCombatLockdown then
+		if (UnitAffectingCombat("player") or playerIsInCombatLockdown) then
 			shouldShow = true
 		else
 			shouldShow = false
 		end
+	end
+	
+	if UnitIsDeadOrGhost("player") then
+		shouldShow = false
 	end
 	
 	if shouldShow then
@@ -148,9 +258,14 @@ end
 
 function CoolHealthBar_OnLoad()
 	initSettings()
-	print(string.format("%s: v%s by Redbu11 is loaded susscessfully\nThank you for using my addon", "CoolHealthBar", localVersion))
+	
+	coolHealthBarScanTooltip = CreateFrame( "GameTooltip", "CoolHealthBarScanTooltip", nil, "GameTooltipTemplate" )
+	coolHealthBarScanTooltip:SetOwner( WorldFrame, "ANCHOR_NONE" )
+	
+	print(string.format("%s by Redbu11 is loaded susscessfully\nThank you for using my addon", "CoolHealthBar"))
 	
 	mainFrame:SetScript("OnEvent", function()
+		--local arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9
 		if (event == "UNIT_HEALTH" or event == "UNIT_MAXHEALTH") and UnitIsUnit(arg1, "player") then
 			UpdateHealth()
 		elseif (event == "UNIT_MANA" or event == "UNIT_MAXMANA") and UnitIsUnit(arg1, "player") then
@@ -158,6 +273,17 @@ function CoolHealthBar_OnLoad()
 		elseif event == "PLAYER_REGEN_DISABLED" or event == "PLAYER_REGEN_ENABLED" then
 			playerIsInCombatLockdown = arg1
 			ChangeHealthBarVisibility()
+		elseif event == "PLAYER_AURAS_CHANGED" then
+			-- print("debug args PLAYER_AURAS_CHANGED arg1: "..arg1)
+			--local buffName, buffRank = GetPlayerBuffName(1)
+			--print("debug: "..buffName.."/"..buffRank)
+			-- local ubName, uBCount, uBSpellid = UnitBuff("player",i)
+			-- if (ubName) then
+				-- print(i.." debug ub: ubName: "..ubName.." uBCount: "..uBCount.." uBSpellid: "..uBSpellid)
+				
+				-- local name = GetSpellInfo(uBSpellid)
+				-- print(i.." debug GetSpellInfo: name: "..name)
+			-- end
 		end
 	end)
 
@@ -169,12 +295,13 @@ function CoolHealthBar_OnLoad()
 	mainFrame:RegisterEvent("UNIT_MAXMANA")
 	mainFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
 	mainFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+	mainFrame:RegisterEvent("PLAYER_AURAS_CHANGED")
 	
 	
 	
 	--mainFrame:SetSize(500, 350)
-	mainFrame:SetWidth(CoolHealthBarSettings.barsWidth+8)
-	mainFrame:SetHeight(CoolHealthBarSettings.healthBarHeight+CoolHealthBarSettings.powerBarHeight+8)
+	mainFrame:SetWidth(math.max(1, CoolHealthBarSettings.barsWidth+8))
+	mainFrame:SetHeight(math.max(1, CoolHealthBarSettings.healthBarHeight+CoolHealthBarSettings.powerBarHeight+8))
 	mainFrame:SetPoint("CENTER", UIParent, "CENTER", CoolHealthBarSettings.offsetX, CoolHealthBarSettings.offsetY)
 	
 	mainFrame:SetBackdrop({
@@ -192,8 +319,8 @@ function CoolHealthBar_OnLoad()
 	mainFrame.health:SetStatusBarTexture(statusBarTexture)
 	mainFrame.health:SetStatusBarColor(0, 1, 0, barAlpha)
 	mainFrame.health:SetPoint("TOP", mainFrame, "TOP", 0, -4)
-	mainFrame.health:SetWidth(CoolHealthBarSettings.barsWidth)
-	mainFrame.health:SetHeight(CoolHealthBarSettings.healthBarHeight)
+	mainFrame.health:SetWidth(math.max(1, CoolHealthBarSettings.barsWidth))
+	mainFrame.health:SetHeight(math.max(1, CoolHealthBarSettings.healthBarHeight))
 	mainFrame.health:SetMinMaxValues(0, UnitHealthMax("player"))
 	mainFrame.health:SetValue(UnitHealth("player"))
 	mainFrame.health.text = mainFrame.health:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -226,8 +353,8 @@ function CoolHealthBar_OnLoad()
 	mainFrame.power:SetStatusBarTexture(statusBarTexture)
 	mainFrame.power:SetStatusBarColor(0, 0, 1, barAlpha)
 	mainFrame.power:SetPoint("TOP", mainFrame.health, "BOTTOM", 0, 0)
-	mainFrame.power:SetWidth(CoolHealthBarSettings.barsWidth)
-	mainFrame.power:SetHeight(CoolHealthBarSettings.powerBarHeight)
+	mainFrame.power:SetWidth(math.max(1, CoolHealthBarSettings.barsWidth))
+	mainFrame.power:SetHeight(math.max(1, CoolHealthBarSettings.powerBarHeight))
 	mainFrame.power:SetMinMaxValues(0, UnitManaMax("player"))
 	mainFrame.power:SetValue(UnitMana("player"))
 	mainFrame.power.text = mainFrame.power:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -280,6 +407,64 @@ function CoolHealthBar_OnLoad()
 	mainFrame.borderImageR.icon:SetTexture("Interface\\AddOns\\CoolHealthBar\\img\\sword_256")
 	mainFrame.borderImageR:Show()
 	
+	
+	mainFrame.buffWatchL1 = CreateFrame("Frame", nil, mainFrame)
+	mainFrame.buffWatchL1:SetPoint("BOTTOMLEFT", mainFrame.health, "TOPLEFT", 0, 2)
+	mainFrame.buffWatchL1:SetHeight(math.max(1, CoolHealthBarSettings.buffWatchSize))
+	mainFrame.buffWatchL1:SetWidth(math.max(1, CoolHealthBarSettings.buffWatchSize))
+	mainFrame.buffWatchL1.icon = mainFrame.buffWatchL1:CreateTexture(nil, "ARTWORK")
+	mainFrame.buffWatchL1.icon:SetTexture("Interface\\Icons\\Spell_Holy_AuraOfLight")
+	mainFrame.buffWatchL1.icon:SetAllPoints()
+	mainFrame.buffWatchL1.textDuration = mainFrame.buffWatchL1:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	mainFrame.buffWatchL1.textDuration:SetPoint("CENTER", mainFrame.buffWatchL1, "CENTER", 0, 0)
+	mainFrame.buffWatchL1.textDuration:SetTextColor(1,1,1,barAlpha)
+	mainFrame.buffWatchL1.textDuration:SetFont("Fonts\\FRIZQT__.TTF", math.max(1, CoolHealthBarSettings.buffWatchSize/2), "OUTLINE")
+	mainFrame.buffWatchL1.textDuration:SetJustifyH("RIGHT")
+	mainFrame.buffWatchL1.textDuration:SetText("99")
+	mainFrame.buffWatchL1.textCount = mainFrame.buffWatchL1:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	mainFrame.buffWatchL1.textCount:SetPoint("BOTTOMRIGHT", mainFrame.buffWatchL1, "BOTTOMRIGHT", -math.max(0.1, CoolHealthBarSettings.buffWatchSize/20), math.max(0.1, CoolHealthBarSettings.buffWatchSize/10))
+	mainFrame.buffWatchL1.textCount:SetTextColor(1,1,1,barAlpha)
+	mainFrame.buffWatchL1.textCount:SetFont("Fonts\\FRIZQT__.TTF", math.max(1, CoolHealthBarSettings.buffWatchSize/4), "OUTLINE")
+	mainFrame.buffWatchL1.textCount:SetJustifyH("RIGHT")
+	mainFrame.buffWatchL1.textCount:SetText("99")
+	--local buffWatchFrame = CreateFrame("Cooldown", "BuffWatchFrame", mainFrame.buffWatchL1, "CooldownFrameTemplate")
+	--mainFrame.buffWatchL1.cdFrame = buffWatchL1cdFrame
+	-- mainFrame.buffWatchL1.cdFrame:SetAllPoints(mainFrame.buffWatchL1)
+	-- mainFrame.buffWatchL1.cdFrame:SetSwipeColor(1, 1, 1)
+	-- mainFrame.buffWatchL1.cdFrame:SetCooldown(5, 10)
+	--local cooldownFrame = CreateFrame("Cooldown", "MyCdFrame", mainFrame.buffWatchL1, "CooldownFrameTemplate")
+	
+	-- mainFrame.buffWatchL1.cooldown = CreateFrame("Model", "BuffWatchL1Cooldown", mainFrame.buffWatchL1, "CooldownFrameTemplate")
+	-- mainFrame.buffWatchL1.cdFrame:SetAllPoints(mainFrame.buffWatchL1)
+	--mainFrame.buffWatchL1.cdFrame:SetSwipeColor(1, 1, 1)
+	--mainFrame.buffWatchL1.cdFrame:SetCooldown(5, 10)
+	mainFrame.buffWatchL1:Show()
+	
+	mainFrame.buffWatchR1 = CreateFrame("Frame", nil, mainFrame)
+	mainFrame.buffWatchR1:SetPoint("BOTTOMRIGHT", mainFrame.health, "TOPRIGHT", 0, 2)
+	mainFrame.buffWatchR1:SetHeight(math.max(1, CoolHealthBarSettings.buffWatchSize))
+	mainFrame.buffWatchR1:SetWidth(math.max(1, CoolHealthBarSettings.buffWatchSize))
+	mainFrame.buffWatchR1.icon = mainFrame.buffWatchR1:CreateTexture(nil, "ARTWORK")
+	mainFrame.buffWatchR1.icon:SetTexture("Interface\\Icons\\Spell_Holy_AuraOfLight")
+	mainFrame.buffWatchR1.icon:SetAllPoints()
+	mainFrame.buffWatchR1.textDuration = mainFrame.buffWatchR1:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	mainFrame.buffWatchR1.textDuration:SetPoint("CENTER", mainFrame.buffWatchR1, "CENTER", 0, 0)
+	mainFrame.buffWatchR1.textDuration:SetTextColor(1,1,1,barAlpha)
+	mainFrame.buffWatchR1.textDuration:SetFont("Fonts\\FRIZQT__.TTF", math.max(1, CoolHealthBarSettings.buffWatchSize/2), "OUTLINE")
+	mainFrame.buffWatchR1.textDuration:SetJustifyH("RIGHT")
+	mainFrame.buffWatchR1.textDuration:SetText("99")
+	mainFrame.buffWatchR1.textCount = mainFrame.buffWatchR1:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	mainFrame.buffWatchR1.textCount:SetPoint("BOTTOMRIGHT", mainFrame.buffWatchR1, "BOTTOMRIGHT", -math.max(0.1, CoolHealthBarSettings.buffWatchSize/20), math.max(0.1, CoolHealthBarSettings.buffWatchSize/10))
+	mainFrame.buffWatchR1.textCount:SetTextColor(1,1,1,barAlpha)
+	mainFrame.buffWatchR1.textCount:SetFont("Fonts\\FRIZQT__.TTF", math.max(1, CoolHealthBarSettings.buffWatchSize/4), "OUTLINE")
+	mainFrame.buffWatchR1.textCount:SetJustifyH("RIGHT")
+	mainFrame.buffWatchR1.textCount:SetText("99")
+	-- mainFrame.buffWatchR1.cdFrame = CreateFrame("Cooldown", "buffWatchR1cdFrame", mainFrame.buffWatchR1,  "CooldownFrameTemplate")
+	-- mainFrame.buffWatchR1.cdFrame:SetAllPoints(mainFrame.buffWatchR1)
+	-- mainFrame.buffWatchR1.cdFrame:SetSwipeColor(1, 1, 1)
+	-- mainFrame.buffWatchR1.cdFrame:SetCooldown(5, 10)
+	mainFrame.buffWatchR1:Show()
+	
 	applyAllSettings()
 end
 
@@ -294,6 +479,9 @@ function loadCoolHealthBarDefaultSettings()
 
 		offsetY = -327,
 		offsetX = 0,
+		buffWatchSize = 60,
+		buffWatchL1Sequence = "seal of",
+		buffWatchR1Sequence = "holy shield,drink,food"
 	}
 	-- print("--CoolHealthBarSettings start")
 	-- print(""..CoolHealthBarSettings.showOutOfCombatWhenNotFull)
@@ -338,6 +526,15 @@ function loadCoolHealthBarSettings()
 		if CoolHealthBarSettings.offsetX == nil then
 			CoolHealthBarSettings.offsetX=0
 		end
+		if CoolHealthBarSettings.buffWatchSize == nil then
+			CoolHealthBarSettings.buffWatchSize=60
+		end
+		if CoolHealthBarSettings.buffWatchL1Sequence == nil then
+			CoolHealthBarSettings.buffWatchL1Sequence="seal of"
+		end
+		if CoolHealthBarSettings.buffWatchR1Sequence == nil then
+			CoolHealthBarSettings.buffWatchR1Sequence="holy shield,drink,food"
+		end
 		print("CoolHealthBar saved data loaded")
 	end
 end
@@ -347,14 +544,36 @@ function applyAllSettings()
 	
 	mainFrame:SetPoint("CENTER", UIParent, "CENTER", CoolHealthBarSettings.offsetX, CoolHealthBarSettings.offsetY)
 	
-	mainFrame:SetWidth(CoolHealthBarSettings.barsWidth+8)
-	mainFrame:SetHeight(CoolHealthBarSettings.healthBarHeight+CoolHealthBarSettings.powerBarHeight+8)
+	mainFrame:SetWidth(math.max(1, CoolHealthBarSettings.barsWidth+8))
+	mainFrame:SetHeight(math.max(1, CoolHealthBarSettings.healthBarHeight+CoolHealthBarSettings.powerBarHeight+8))
 	
-	mainFrame.health:SetWidth(CoolHealthBarSettings.barsWidth)
-	mainFrame.health:SetHeight(CoolHealthBarSettings.healthBarHeight)
+	mainFrame.health:SetWidth(math.max(1, CoolHealthBarSettings.barsWidth))
+	mainFrame.health:SetHeight(math.max(1, CoolHealthBarSettings.healthBarHeight))
 	
-	mainFrame.power:SetWidth(CoolHealthBarSettings.barsWidth)
-	mainFrame.power:SetHeight(CoolHealthBarSettings.powerBarHeight)
+	mainFrame.power:SetWidth(math.max(1, CoolHealthBarSettings.barsWidth))
+	mainFrame.power:SetHeight(math.max(1, CoolHealthBarSettings.powerBarHeight))
+	
+	mainFrame.buffWatchL1:SetHeight(math.max(1, CoolHealthBarSettings.buffWatchSize))
+	mainFrame.buffWatchL1:SetWidth(math.max(1, CoolHealthBarSettings.buffWatchSize))
+	mainFrame.buffWatchL1.textDuration:SetFont("Fonts\\FRIZQT__.TTF", math.max(1, CoolHealthBarSettings.buffWatchSize/2), "OUTLINE")
+	mainFrame.buffWatchL1.textCount:SetFont("Fonts\\FRIZQT__.TTF", math.max(1, CoolHealthBarSettings.buffWatchSize/4), "OUTLINE")
+	mainFrame.buffWatchL1.textCount:SetPoint("BOTTOMRIGHT", mainFrame.buffWatchL1, "BOTTOMRIGHT", -math.max(0.1, CoolHealthBarSettings.buffWatchSize/20), math.max(0.1, CoolHealthBarSettings.buffWatchSize/10))
+	
+	mainFrame.buffWatchR1:SetHeight(math.max(1, CoolHealthBarSettings.buffWatchSize))
+	mainFrame.buffWatchR1:SetWidth(math.max(1, CoolHealthBarSettings.buffWatchSize))
+	mainFrame.buffWatchR1.textDuration:SetFont("Fonts\\FRIZQT__.TTF", math.max(1, CoolHealthBarSettings.buffWatchSize/2), "OUTLINE")
+	mainFrame.buffWatchR1.textCount:SetFont("Fonts\\FRIZQT__.TTF", math.max(1, CoolHealthBarSettings.buffWatchSize/4), "OUTLINE")
+	mainFrame.buffWatchR1.textCount:SetPoint("BOTTOMRIGHT", mainFrame.buffWatchR1, "BOTTOMRIGHT", -math.max(0.1, CoolHealthBarSettings.buffWatchSize/20), math.max(0.1, CoolHealthBarSettings.buffWatchSize/10))
+	
+	buffWatchL1Names = {}
+	for word in string.gfind(CoolHealthBarSettings.buffWatchL1Sequence, '([^,]+)') do
+		table.insert(buffWatchL1Names, trimString(word))
+	end
+	
+	buffWatchR1Names = {}
+	for word in string.gfind(CoolHealthBarSettings.buffWatchR1Sequence, '([^,]+)') do
+		table.insert(buffWatchR1Names, trimString(word))
+	end
 	
 	UpdateHealth()
 	UpdatePower()
@@ -390,8 +609,8 @@ function initSettings()
 	  end
 	end)
 	
-	coolHealthBarOptionsFrame:SetWidth(400)
-	coolHealthBarOptionsFrame:SetHeight(400)
+	coolHealthBarOptionsFrame:SetWidth(500)
+	coolHealthBarOptionsFrame:SetHeight(500)
 	coolHealthBarOptionsFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)	
 	
 	-- local tex = coolHealthBarOptionsFrame:CreateTexture("ARTWORK")
@@ -444,8 +663,28 @@ function initSettings()
 		loadCoolHealthBarDefaultSettings()
 		ReloadUI()
 	end)
+	
+	-- Create the scrolling parent frame and size it to fit inside the texture
+	coolHealthBarOptionsFrame.scrollFrame = CreateFrame("ScrollFrame", "CoolHealthBarOptionsFrame_ScrollFrame", coolHealthBarOptionsFrame, "UIPanelScrollFrameTemplate")
+	-- scrollFrame:SetPoint("TOPLEFT", 3, -4)
+	-- scrollFrame:SetPoint("BOTTOMRIGHT", -27, 4)
+	-- coolHealthBarOptionsFrame.scrollFrame:SetPoint("TOPLEFT", coolHealthBarOptionsFrame, "TOPLEFT", 4, -8)
+	-- coolHealthBarOptionsFrame.scrollFrame:SetPoint("BOTTOMRIGHT", coolHealthBarOptionsFrame, "BOTTOMRIGHT", -3, 4)
+	coolHealthBarOptionsFrame.scrollFrame:SetHeight(coolHealthBarOptionsFrame:GetHeight())
+	coolHealthBarOptionsFrame.scrollBar = _G[coolHealthBarOptionsFrame.scrollFrame:GetName() .. "ScrollBar"]
+    coolHealthBarOptionsFrame.scrollFrame:SetWidth(coolHealthBarOptionsFrame:GetWidth())
+	coolHealthBarOptionsFrame.scrollFrame:SetPoint("TOPLEFT", 10, -30)
+	coolHealthBarOptionsFrame.scrollFrame:SetPoint("BOTTOMRIGHT", -30, 50)
+
+	-- Create the scrolling child frame, set its width to fit, and give it an arbitrary minimum height (such as 1)
+	local scrollChild = CreateFrame("Frame", nil, coolHealthBarOptionsFrame.scrollFrame)
+	-- scrollChild:SetWidth(InterfaceOptionsFramePanelContainer:GetWidth()-18)
+	scrollChild:SetWidth(coolHealthBarOptionsFrame:GetWidth()-18)
+	scrollChild:SetHeight(1) 
+	scrollChild:SetAllPoints(coolHealthBarOptionsFrame.scrollFrame)
+	coolHealthBarOptionsFrame.scrollFrame:SetScrollChild(scrollChild)
 		
-	local showOutOfCombatCheckbox = CreateFrame("CheckButton", "showOutOfCombatCheckbox", coolHealthBarOptionsFrame, "UICheckButtonTemplate")
+	local showOutOfCombatCheckbox = CreateFrame("CheckButton", "showOutOfCombatCheckbox", scrollChild, "UICheckButtonTemplate")
 	showOutOfCombatCheckbox:SetPoint("TOPLEFT",8,-24)
 	getglobal(showOutOfCombatCheckbox:GetName() .. 'Text'):SetText("Show out of combat (if HP or power not full)")
 	showOutOfCombatCheckbox:SetChecked(CoolHealthBarSettings.showOutOfCombatWhenNotFull)
@@ -455,7 +694,7 @@ function initSettings()
 		applyAllSettings()
 	end)
 	
-	local alwaysShowOutOfCombatCheckbox = CreateFrame("CheckButton", "alwaysShowOutOfCombatCheckbox", coolHealthBarOptionsFrame, "UICheckButtonTemplate")
+	local alwaysShowOutOfCombatCheckbox = CreateFrame("CheckButton", "alwaysShowOutOfCombatCheckbox", scrollChild, "UICheckButtonTemplate")
 	--alwaysShowOutOfCombatCheckbox:SetPoint("TOPLEFT",8,-48)
 	alwaysShowOutOfCombatCheckbox:SetPoint("TOP", showOutOfCombatCheckbox, "BOTTOM", 0, -0)
 	getglobal(alwaysShowOutOfCombatCheckbox:GetName() .. 'Text'):SetText("ALWAYS Show out of combat")
@@ -465,6 +704,12 @@ function initSettings()
 		CoolHealthBarSettings.alwaysShowOutOfCombat=not CoolHealthBarSettings.alwaysShowOutOfCombat
 		applyAllSettings()
 	end)
+	
+	-- local colorrrr, colorrrg, colorrrb = getglobal(alwaysShowOutOfCombatCheckbox:GetName() .. 'Text'):GetTextColor()
+	
+	-- print("dddd: "..colorrrr)
+	-- print("dddd: "..colorrrg)
+	-- print("dddd: "..colorrrb)
 	
 	-- print("--CoolHealthBarSettings start")
 	-- print(""..CoolHealthBarSettings.showOutOfCombatWhenNotFull)
@@ -476,16 +721,17 @@ function initSettings()
 	-- print(""..CoolHealthBarSettings.offsetX)
 	-- print("--CoolHealthBarSettings end")
 	
-	local offsetYInputTitle = coolHealthBarOptionsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	local offsetYInputTitle = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	--nameplate.health.text:SetAllPoints()
 	--offsetYnputTitle:SetPoint("TOPLEFT", coolHealthBarOptionsFrame, "TOPLEFT", 12,-86)
 	offsetYInputTitle:SetPoint("TOPLEFT", alwaysShowOutOfCombatCheckbox, "BOTTOMLEFT", 4, -8)
-	offsetYInputTitle:SetTextColor(1,1,1,barAlpha)
+	offsetYInputTitle:SetTextColor(0.999,0.819,0,barAlpha)
+	-- offsetYInputTitle:SetFontObject("GameFontHighlightSmall")
 	--offsetYnputTitle:SetFont("Interface\\AddOns\\CoolHealthBar\\fonts\\francois.ttf", 12, "OUTLINE")
 	offsetYInputTitle:SetJustifyH("LEFT")
 	offsetYInputTitle:SetText("Offset Y: ")
 	
-	local offsetYInput = CreateFrame("EditBox", nil, coolHealthBarOptionsFrame)
+	local offsetYInput = CreateFrame("EditBox", nil, scrollChild)
 	offsetYInput:SetBackdrop({
 		bgFile = "Interface/Tooltips/UI-Tooltip-Background",
 		--edgeFile = "Interface/Tooltips/UI-Tooltip-Border",
@@ -517,16 +763,16 @@ function initSettings()
 	
 	--------
 	
-	local offsetXInputTitle = coolHealthBarOptionsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	local offsetXInputTitle = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	--nameplate.health.text:SetAllPoints()
 	--offsetXInputTitle:SetPoint("TOPLEFT", coolHealthBarOptionsFrame, "TOPLEFT", 12,-118)
 	offsetXInputTitle:SetPoint("TOPLEFT", offsetYInputTitle, "BOTTOMLEFT", 0, -16)
-	offsetXInputTitle:SetTextColor(1,1,1,barAlpha)
+	offsetXInputTitle:SetTextColor(0.999,0.819,0,barAlpha)
 	--offsetXInputTitle:SetFont("Interface\\AddOns\\CoolHealthBar\\fonts\\francois.ttf", 12, "OUTLINE")
 	offsetXInputTitle:SetJustifyH("LEFT")
 	offsetXInputTitle:SetText("Offset X: ")
 	
-	local offsetXInput = CreateFrame("EditBox", nil, coolHealthBarOptionsFrame)
+	local offsetXInput = CreateFrame("EditBox", nil, scrollChild)
 	offsetXInput:SetBackdrop({
 		bgFile = "Interface/Tooltips/UI-Tooltip-Background",
 		--edgeFile = "Interface/Tooltips/UI-Tooltip-Border",
@@ -559,13 +805,13 @@ function initSettings()
 	
 	---------------
 	
-	local barWidthInputTitle = coolHealthBarOptionsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	local barWidthInputTitle = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	barWidthInputTitle:SetPoint("TOPLEFT", offsetXInputTitle, "BOTTOMLEFT", 0, -16)
-	barWidthInputTitle:SetTextColor(1,1,1,barAlpha)
+	barWidthInputTitle:SetTextColor(0.999,0.819,0,barAlpha)
 	barWidthInputTitle:SetJustifyH("LEFT")
 	barWidthInputTitle:SetText("Bar width: ")
 	
-	local barWidthInput = CreateFrame("EditBox", nil, coolHealthBarOptionsFrame)
+	local barWidthInput = CreateFrame("EditBox", nil, scrollChild)
 	barWidthInput:SetBackdrop({
 		bgFile = "Interface/Tooltips/UI-Tooltip-Background",
 		edgeFile = "Interface/DialogFrame/UI-DialogBox-Border",
@@ -595,13 +841,13 @@ function initSettings()
 	
 	--------
 	
-	local hpBarHeightInputTitle = coolHealthBarOptionsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	local hpBarHeightInputTitle = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	hpBarHeightInputTitle:SetPoint("TOPLEFT", barWidthInputTitle, "BOTTOMLEFT", 0, -16)
-	hpBarHeightInputTitle:SetTextColor(1,1,1,barAlpha)
+	hpBarHeightInputTitle:SetTextColor(0.999,0.819,0,barAlpha)
 	hpBarHeightInputTitle:SetJustifyH("LEFT")
 	hpBarHeightInputTitle:SetText("HP bar height: ")
 	
-	local hpBarHeightInput = CreateFrame("EditBox", nil, coolHealthBarOptionsFrame)
+	local hpBarHeightInput = CreateFrame("EditBox", nil, scrollChild)
 	hpBarHeightInput:SetBackdrop({
 		bgFile = "Interface/Tooltips/UI-Tooltip-Background",
 		edgeFile = "Interface/DialogFrame/UI-DialogBox-Border",
@@ -631,13 +877,13 @@ function initSettings()
 	
 	--------
 	
-	local powerBarHeightInputTitle = coolHealthBarOptionsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	local powerBarHeightInputTitle = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	powerBarHeightInputTitle:SetPoint("TOPLEFT", hpBarHeightInputTitle, "BOTTOMLEFT", 0, -16)
-	powerBarHeightInputTitle:SetTextColor(1,1,1,barAlpha)
+	powerBarHeightInputTitle:SetTextColor(0.999,0.819,0,barAlpha)
 	powerBarHeightInputTitle:SetJustifyH("LEFT")
 	powerBarHeightInputTitle:SetText("Power bar height: ")
 	
-	local powerBarHeightInput = CreateFrame("EditBox", nil, coolHealthBarOptionsFrame)
+	local powerBarHeightInput = CreateFrame("EditBox", nil, scrollChild)
 	powerBarHeightInput:SetBackdrop({
 		bgFile = "Interface/Tooltips/UI-Tooltip-Background",
 		edgeFile = "Interface/DialogFrame/UI-DialogBox-Border",
@@ -664,6 +910,141 @@ function initSettings()
 			applyAllSettings()
 		end
 	end)
+	
+	
+	-----------------
+	
+	local buffWatchSectionTitle = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	buffWatchSectionTitle:SetPoint("TOPLEFT", powerBarHeightInputTitle, "BOTTOMLEFT", 0, -16)
+	buffWatchSectionTitle:SetTextColor(1,1,1,barAlpha)
+	buffWatchSectionTitle:SetJustifyH("LEFT")
+	buffWatchSectionTitle:SetText("Buff watch")
+	
+	-------------
+	
+	local buffWatchSizeInputTitle = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	buffWatchSizeInputTitle:SetPoint("TOPLEFT", buffWatchSectionTitle, "BOTTOMLEFT", 0, -16)
+	buffWatchSizeInputTitle:SetTextColor(0.999,0.819,0,barAlpha)
+	buffWatchSizeInputTitle:SetJustifyH("LEFT")
+	buffWatchSizeInputTitle:SetText("Buff watch size: ")
+	
+	local buffWatchSizeInput = CreateFrame("EditBox", nil, scrollChild)
+	buffWatchSizeInput:SetBackdrop({
+		bgFile = "Interface/Tooltips/UI-Tooltip-Background",
+		edgeFile = "Interface/DialogFrame/UI-DialogBox-Border",
+		edgeSize = 12,
+		insets = { left = 2, right = 2, top = 2, bottom = 2 },
+	})
+	buffWatchSizeInput:SetBackdropColor(0,0,0,.5)
+	buffWatchSizeInput:SetTextInsets(5, 5, 5, 5)
+	buffWatchSizeInput:SetTextColor(1,1,1,1)
+	buffWatchSizeInput:SetJustifyH("CENTER")
+	buffWatchSizeInput:SetWidth(80)
+	buffWatchSizeInput:SetHeight(26)
+	buffWatchSizeInput:SetPoint("LEFT", buffWatchSizeInputTitle, "RIGHT", 0, 0)
+	buffWatchSizeInput:SetFontObject("GameFontNormal")
+	buffWatchSizeInput:SetAutoFocus(false)
+	buffWatchSizeInput:SetText(""..CoolHealthBarSettings.buffWatchSize)
+	buffWatchSizeInput:SetScript("OnTextChanged", function(self)
+		local inputValue = tonumber(buffWatchSizeInput:GetText())
+		if not inputValue then
+			buffWatchSizeInput:SetText(""..CoolHealthBarSettings.buffWatchSize)
+		else
+			CoolHealthBarSettings.buffWatchSize = inputValue
+			buffWatchSizeInput:SetText(CoolHealthBarSettings.buffWatchSize)
+			applyAllSettings()
+		end
+	end)
+	
+	-------------
+	
+	local buffWatchSectionDescription = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	buffWatchSectionDescription:SetPoint("TOPLEFT", buffWatchSizeInputTitle, "BOTTOMLEFT", 0, -16)
+	buffWatchSectionDescription:SetTextColor(1,1,1,barAlpha)
+	buffWatchSectionDescription:SetJustifyH("LEFT")
+	buffWatchSectionDescription:SetText("Specify buff names in format (case insensitive, separate with comma):")
+	
+	local buffWatchSectionDescription2 = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	buffWatchSectionDescription2:SetPoint("TOPLEFT", buffWatchSectionDescription, "BOTTOMLEFT", 0, -16)
+	buffWatchSectionDescription2:SetTextColor(1,1,1,barAlpha)
+	buffWatchSectionDescription2:SetJustifyH("LEFT")
+	buffWatchSectionDescription2:SetText("(Leave blank to hide)")
+	
+	local buffWatchSectionDescription3 = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	buffWatchSectionDescription3:SetPoint("TOPLEFT", buffWatchSectionDescription2, "BOTTOMLEFT", 0, -4)
+	buffWatchSectionDescription3:SetTextColor(1,1,1,barAlpha)
+	buffWatchSectionDescription3:SetJustifyH("LEFT")
+	buffWatchSectionDescription3:SetText("seal of, holy shield")
+	
+	local buffWatchL1Title = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	buffWatchL1Title:SetPoint("TOPLEFT", buffWatchSectionDescription3, "BOTTOMLEFT", 0, -16)
+	buffWatchL1Title:SetTextColor(0.999,0.819,0,barAlpha)
+	buffWatchL1Title:SetJustifyH("LEFT")
+	buffWatchL1Title:SetText("Buff watch (Left 1): ")
+	
+	local buffWatchL1Input = CreateFrame("EditBox", nil, scrollChild)
+	buffWatchL1Input:SetBackdrop({
+		bgFile = "Interface/Tooltips/UI-Tooltip-Background",
+		edgeFile = "Interface/DialogFrame/UI-DialogBox-Border",
+		edgeSize = 12,
+		insets = { left = 2, right = 2, top = 2, bottom = 2 },
+	})
+	buffWatchL1Input:SetBackdropColor(0,0,0,.5)
+	buffWatchL1Input:SetTextInsets(5, 5, 5, 5)
+	buffWatchL1Input:SetTextColor(1,1,1,1)
+	buffWatchL1Input:SetJustifyH("LEFT")
+	buffWatchL1Input:SetWidth(280)
+	buffWatchL1Input:SetHeight(26)
+	buffWatchL1Input:SetPoint("LEFT", buffWatchL1Title, "RIGHT", 0, 0)
+	buffWatchL1Input:SetFontObject("GameFontNormal")
+	buffWatchL1Input:SetAutoFocus(false)
+	buffWatchL1Input:SetText(""..CoolHealthBarSettings.buffWatchL1Sequence)
+	buffWatchL1Input:SetScript("OnTextChanged", function(self)
+		local inputValue = buffWatchL1Input:GetText()
+		if not inputValue then
+			buffWatchL1Input:SetText(""..CoolHealthBarSettings.buffWatchL1Sequence)
+		else
+			CoolHealthBarSettings.buffWatchL1Sequence = inputValue
+			buffWatchL1Input:SetText(""..CoolHealthBarSettings.buffWatchL1Sequence)
+			applyAllSettings()
+		end
+	end)
+	
+	local buffWatchR1Title = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	buffWatchR1Title:SetPoint("TOPLEFT", buffWatchL1Title, "BOTTOMLEFT", 0, -16)
+	buffWatchR1Title:SetTextColor(0.999,0.819,0,barAlpha)
+	buffWatchR1Title:SetJustifyH("LEFT")
+	buffWatchR1Title:SetText("Buff watch (Right 1): ")
+	
+	local buffWatchR1Input = CreateFrame("EditBox", nil, scrollChild)
+	buffWatchR1Input:SetBackdrop({
+		bgFile = "Interface/Tooltips/UI-Tooltip-Background",
+		edgeFile = "Interface/DialogFrame/UI-DialogBox-Border",
+		edgeSize = 12,
+		insets = { left = 2, right = 2, top = 2, bottom = 2 },
+	})
+	buffWatchR1Input:SetBackdropColor(0,0,0,.5)
+	buffWatchR1Input:SetTextInsets(5, 5, 5, 5)
+	buffWatchR1Input:SetTextColor(1,1,1,1)
+	buffWatchR1Input:SetJustifyH("LEFT")
+	buffWatchR1Input:SetWidth(280)
+	buffWatchR1Input:SetHeight(26)
+	buffWatchR1Input:SetPoint("LEFT", buffWatchR1Title, "RIGHT", 0, 0)
+	buffWatchR1Input:SetFontObject("GameFontNormal")
+	buffWatchR1Input:SetAutoFocus(false)
+	buffWatchR1Input:SetText(""..CoolHealthBarSettings.buffWatchR1Sequence)
+	buffWatchR1Input:SetScript("OnTextChanged", function(self)
+		local inputValue = buffWatchR1Input:GetText()
+		if not inputValue then
+			buffWatchR1Input:SetText(""..CoolHealthBarSettings.buffWatchR1Sequence)
+		else
+			CoolHealthBarSettings.buffWatchR1Sequence = inputValue
+			buffWatchR1Input:SetText(""..CoolHealthBarSettings.buffWatchR1Sequence)
+			applyAllSettings()
+		end
+	end)
+	
+	-- coolHealthBarOptionsFrame.scrollFrame:UpdateScrollChildRect()
 	
 	coolHealthBarOptionsFrame:Hide()
 	

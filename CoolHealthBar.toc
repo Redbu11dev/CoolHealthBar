@@ -4,6 +4,6 @@
 ## LoadOnDemand: 0
 ## Author: Redbu11
 ## DefaultState: enabled
-## SavedVariables: CoolHealthBarSettings
+## SavedVariablesPerCharacter: CoolHealthBarSettings
 
 CoolHealthBar.lua
