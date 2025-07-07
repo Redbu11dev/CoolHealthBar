@@ -93,7 +93,19 @@ mainFrame:SetScript("OnUpdate", function()
 			
 			if (table.getn(buffWatchL1Names) > 0) then
 				for _, buffToWatchName in ipairs(buffWatchL1Names) do
-					if string.find(string.upper(buffName), string.upper(buffToWatchName)) then
+					local doesNameMatch = false
+					
+					if not CoolHealthBarSettings.useExactNamingL1 then
+						if (string.find(string.upper(buffName), string.upper(buffToWatchName))) then
+							doesNameMatch = true
+						end
+					else
+						if (string.upper(buffName) == string.upper(buffToWatchName)) then
+							doesNameMatch = true
+						end
+					end
+				
+					if doesNameMatch then
 						mainFrame.buffWatchL1.icon:SetTexture(bufftexture)
 						if (buffSecondsLeft > 0) then
 							--mainFrame.buffWatchL1.cdFrame:SetCooldown(buffSecondsLeft, 30)
@@ -117,7 +129,19 @@ mainFrame:SetScript("OnUpdate", function()
 			
 			if (table.getn(buffWatchR1Names) > 0) then
 				for _, buffToWatchName in ipairs(buffWatchR1Names) do
-					if string.find(string.upper(buffName), string.upper(buffToWatchName)) then
+					local doesNameMatch = false
+					
+					if not CoolHealthBarSettings.useExactNamingR1 then
+						if (string.find(string.upper(buffName), string.upper(buffToWatchName))) then
+							doesNameMatch = true
+						end
+					else
+						if (string.upper(buffName) == string.upper(buffToWatchName)) then
+							doesNameMatch = true
+						end
+					end
+					
+					if doesNameMatch then
 						mainFrame.buffWatchR1.icon:SetTexture(bufftexture)
 						if (buffSecondsLeft > 0) then
 							--mainFrame.buffWatchR1.cdFrame:SetCooldown(buffSecondsLeft, 30)
@@ -481,7 +505,9 @@ function loadCoolHealthBarDefaultSettings()
 		offsetX = 0,
 		buffWatchSize = 60,
 		buffWatchL1Sequence = "seal of",
-		buffWatchR1Sequence = "holy shield,drink,food"
+		useExactNamingL1 = false,
+		buffWatchR1Sequence = "holy shield,drink,food",
+		useExactNamingR1 = false
 	}
 	-- print("--CoolHealthBarSettings start")
 	-- print(""..CoolHealthBarSettings.showOutOfCombatWhenNotFull)
@@ -532,8 +558,14 @@ function loadCoolHealthBarSettings()
 		if CoolHealthBarSettings.buffWatchL1Sequence == nil then
 			CoolHealthBarSettings.buffWatchL1Sequence="seal of"
 		end
+		if CoolHealthBarSettings.useExactNamingL1 == nil then
+			CoolHealthBarSettings.useExactNamingL1=false
+		end
 		if CoolHealthBarSettings.buffWatchR1Sequence == nil then
 			CoolHealthBarSettings.buffWatchR1Sequence="holy shield,drink,food"
+		end
+		if CoolHealthBarSettings.useExactNamingR1 == nil then
+			CoolHealthBarSettings.useExactNamingR1=false
 		end
 		print("CoolHealthBar saved data loaded")
 	end
@@ -976,8 +1008,19 @@ function initSettings()
 	buffWatchSectionDescription3:SetJustifyH("LEFT")
 	buffWatchSectionDescription3:SetText("seal of, holy shield")
 	
+	local useExactNamingL1Checkbox = CreateFrame("CheckButton", "useExactNamingL1Checkbox", scrollChild, "UICheckButtonTemplate")
+	--useExactNamingL1Checkbox:SetPoint("TOPLEFT",8,-24)
+	useExactNamingL1Checkbox:SetPoint("TOPLEFT", buffWatchSectionDescription3, "BOTTOMLEFT", 0, -16)
+	getglobal(useExactNamingL1Checkbox:GetName() .. 'Text'):SetText("Use exact buff names (For buff watch left 1)")
+	useExactNamingL1Checkbox:SetChecked(CoolHealthBarSettings.useExactNamingL1)
+	useExactNamingL1Checkbox.tooltip = "Use exact buff names (For buff watch left 1)"
+	useExactNamingL1Checkbox:SetScript("OnClick", function()
+		CoolHealthBarSettings.useExactNamingL1=not CoolHealthBarSettings.useExactNamingL1
+		applyAllSettings()
+	end)
+	
 	local buffWatchL1Title = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-	buffWatchL1Title:SetPoint("TOPLEFT", buffWatchSectionDescription3, "BOTTOMLEFT", 0, -16)
+	buffWatchL1Title:SetPoint("TOPLEFT", useExactNamingL1Checkbox, "BOTTOMLEFT", 0, -4)
 	buffWatchL1Title:SetTextColor(0.999,0.819,0,barAlpha)
 	buffWatchL1Title:SetJustifyH("LEFT")
 	buffWatchL1Title:SetText("Buff watch (Left 1): ")
@@ -1010,8 +1053,18 @@ function initSettings()
 		end
 	end)
 	
+	local useExactNamingR1Checkbox = CreateFrame("CheckButton", "useExactNamingR1Checkbox", scrollChild, "UICheckButtonTemplate")
+	useExactNamingR1Checkbox:SetPoint("TOPLEFT", buffWatchL1Title, "BOTTOMLEFT", 0, -16)
+	getglobal(useExactNamingR1Checkbox:GetName() .. 'Text'):SetText("Use exact buff names (For buff watch right 1)")
+	useExactNamingR1Checkbox:SetChecked(CoolHealthBarSettings.useExactNamingR1)
+	useExactNamingR1Checkbox.tooltip = "Use exact buff names (For buff watch right 1)"
+	useExactNamingR1Checkbox:SetScript("OnClick", function()
+		CoolHealthBarSettings.useExactNamingR1=not CoolHealthBarSettings.useExactNamingR1
+		applyAllSettings()
+	end)
+	
 	local buffWatchR1Title = scrollChild:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-	buffWatchR1Title:SetPoint("TOPLEFT", buffWatchL1Title, "BOTTOMLEFT", 0, -16)
+	buffWatchR1Title:SetPoint("TOPLEFT", useExactNamingR1Checkbox, "BOTTOMLEFT", 0, -4)
 	buffWatchR1Title:SetTextColor(0.999,0.819,0,barAlpha)
 	buffWatchR1Title:SetJustifyH("LEFT")
 	buffWatchR1Title:SetText("Buff watch (Right 1): ")
