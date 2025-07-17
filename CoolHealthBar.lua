@@ -245,7 +245,7 @@ function ChangeHealthBarVisibility()
 		local powerType = UnitPowerType("player")
 		
 		if powerType == 1 then
-			if UnitAffectingCombat("player") or playerIsInCombatLockdown or (currentHp < maxHp) and maxHp > 0 then
+			if UnitAffectingCombat("player") or playerIsInCombatLockdown or (currentHp < maxHp) or currentPower > 0 and maxHp > 0 then
 				shouldShow = true
 			else
 				shouldShow = false
@@ -292,7 +292,7 @@ function CoolHealthBar_OnLoad()
 		--local arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9
 		if (event == "UNIT_HEALTH" or event == "UNIT_MAXHEALTH") and UnitIsUnit(arg1, "player") then
 			UpdateHealth()
-		elseif (event == "UNIT_MANA" or event == "UNIT_MAXMANA") and UnitIsUnit(arg1, "player") then
+		elseif (event == "UNIT_MANA" or event == "UNIT_MAXMANA" or event == "UNIT_RAGE" or event == "UNIT_MAXRAGE" or event == "UNIT_ENERGY" or event == "UNIT_MAXENERGY") and UnitIsUnit(arg1, "player") then
 			UpdatePower()
 		elseif event == "PLAYER_REGEN_DISABLED" or event == "PLAYER_REGEN_ENABLED" then
 			playerIsInCombatLockdown = arg1
@@ -317,6 +317,10 @@ function CoolHealthBar_OnLoad()
 	mainFrame:RegisterEvent("UNIT_MAXHEALTH")
 	mainFrame:RegisterEvent("UNIT_MANA")
 	mainFrame:RegisterEvent("UNIT_MAXMANA")
+	mainFrame:RegisterEvent("UNIT_RAGE")
+	mainFrame:RegisterEvent("UNIT_MAXRAGE")
+	mainFrame:RegisterEvent("UNIT_ENERGY")
+	mainFrame:RegisterEvent("UNIT_MAXENERGY")
 	mainFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
 	mainFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
 	mainFrame:RegisterEvent("PLAYER_AURAS_CHANGED")
