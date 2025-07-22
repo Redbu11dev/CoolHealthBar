@@ -1,5 +1,7 @@
 --local frame = CreateFrame("Frame")
 
+local _G = getfenv(0)
+
 SLASH_COOLHEALTHBAR1 = '/coolhealthbar'
 SLASH_COOLHEALTHBAR2 = '/chb'
 SlashCmdList["COOLHEALTHBAR"] = function(msg)
