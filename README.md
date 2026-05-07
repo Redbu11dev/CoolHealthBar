@@ -1,5 +1,3 @@
-Discontinued for now in order to maintain wotlk version https://github.com/Redbu11dev/CoolHealthBar-wotlk
-
 # CoolHealthBar
 
 Extra health and power bar
